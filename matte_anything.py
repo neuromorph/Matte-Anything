@@ -170,6 +170,15 @@ if __name__ == "__main__":
                 box_threshold=fg_box_threshold,
                 text_threshold=fg_text_threshold
                 )
+            
+            if fg_boxes.shape[0] == 0:
+                # no fg object detected
+                fg_boxes = None
+            else:
+                h, w, _ = input_x.shape
+                fg_boxes = fg_boxes * torch.Tensor([w, h, w, h])
+                fg_boxes = box_convert(boxes=fg_boxes, in_fmt="cxcywh", out_fmt="xyxy").numpy().to(device)
+
         else:
             fg_boxes = None
 
