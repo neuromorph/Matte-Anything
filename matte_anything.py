@@ -310,4 +310,4 @@ if __name__ == "__main__":
             with gr.Column():
                 background_image = gr.State(value=None)
 
-    demo.launch()
+    demo.launch(share=True)
