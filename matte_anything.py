@@ -176,7 +176,8 @@ if __name__ == "__main__":
                 fg_boxes = None
             else:
                 h, w, _ = input_x.shape
-                fg_boxes = fg_boxes * torch.Tensor([w, h, w, h]).to(device)
+                fg_boxes = torch.Tensor(fg_boxes).to(device)
+                fg_boxes = fg_boxes * torch.Tensor([w, h, w, h])
                 fg_boxes = box_convert(boxes=fg_boxes, in_fmt="cxcywh", out_fmt="xyxy").numpy()
 
         else:
