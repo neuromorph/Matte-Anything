@@ -183,8 +183,8 @@ if __name__ == "__main__":
             model=grounding_dino,
             image=image_transformed,
             caption="glass, lens, crystal, diamond, bubble, bulb, web, grid",
-            box_threshold,
-            text_threshold,
+            box_threshold=box_threshold,
+            text_threshold=text_threshold
             )
         annotated_frame = dino_annotate(image_source=input_x, boxes=boxes, logits=logits, phrases=phrases)
         # 把annotated_frame的改成RGB
