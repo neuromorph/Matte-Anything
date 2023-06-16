@@ -140,21 +140,45 @@ if __name__ == "__main__":
     vitmatte = init_vitmatte(vitmatte_model)
     grounding_dino = dino_load_model(grounding_dino['config'], grounding_dino['weight'])
 
-    def run_inference(input_x, selected_points, erode_kernel_size, dilate_kernel_size, box_threshold, text_threshold, caption):
+    def run_inference(input_x, selected_points, erode_kernel_size, dilate_kernel_size, fg_box_threshold, fg_text_threshold, fg_caption, tr_box_threshold, tr_text_threshold, tr_caption):
         predictor.set_image(input_x)
+
+        dino_transform = T.Compose(
+        [
+            T.RandomResize([800], max_size=1333),
+            T.ToTensor(),
+            T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        ])
+        image_transformed, _ = dino_transform(Image.fromarray(input_x), None)
+
         if len(selected_points) != 0:
             points = torch.Tensor([p for p, _ in selected_points]).to(device).unsqueeze(1)
             labels = torch.Tensor([int(l) for _, l in selected_points]).to(device).unsqueeze(1)
             transformed_points = predictor.transform.apply_coords_torch(points, input_x.shape[:2])
             print(points.size(), transformed_points.size(), labels.size(), input_x.shape, points)
+            point_coords=transformed_points.permute(1, 0, 2)
+            point_labels=labels.permute(1, 0)
         else:
             transformed_points, labels = None, None
-                    
-        # predict segmentation according to the boxes
+            point_coords, point_labels = None, None
+            
+        if fg_caption is not None and fg_caption != "":
+            fg_boxes, _, _ = dino_predict(
+                model=grounding_dino,
+                image=image_transformed,
+                caption=fg_caption,
+                box_threshold=fg_box_threshold,
+                text_threshold=fg_text_threshold
+                )
+        else:
+            fg_boxes = None
+
+
+        # predict segmentation according to the boxes or points
         masks, scores, logits = predictor.predict_torch(
-            point_coords=transformed_points.permute(1, 0, 2),
-            point_labels=labels.permute(1, 0),
-            boxes=None,
+            point_coords=point_coords,
+            point_labels=point_labels,
+            boxes=fg_boxes,
             multimask_output=False,
         )
         masks = masks.cpu().detach().numpy()
@@ -172,19 +196,19 @@ if __name__ == "__main__":
         trimap[trimap==128] = 0.5
         trimap[trimap==255] = 1
 
-        dino_transform = T.Compose(
-        [
-            T.RandomResize([800], max_size=1333),
-            T.ToTensor(),
-            T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        ])
-        image_transformed, _ = dino_transform(Image.fromarray(input_x), None)
+        # dino_transform = T.Compose(
+        # [
+        #     T.RandomResize([800], max_size=1333),
+        #     T.ToTensor(),
+        #     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        # ])
+        # image_transformed, _ = dino_transform(Image.fromarray(input_x), None)
         boxes, logits, phrases = dino_predict(
             model=grounding_dino,
             image=image_transformed,
-            caption=caption,
-            box_threshold=box_threshold,
-            text_threshold=text_threshold
+            caption=tr_caption,
+            box_threshold=tr_box_threshold,
+            text_threshold=tr_text_threshold
             )
         annotated_frame = dino_annotate(image_source=input_x, boxes=boxes, logits=logits, phrases=phrases)
         # 把annotated_frame的改成RGB
@@ -267,9 +291,13 @@ if __name__ == "__main__":
                 erode_kernel_size = gr.inputs.Slider(minimum=1, maximum=30, step=1, default=10, label="erode_kernel_size")
                 dilate_kernel_size = gr.inputs.Slider(minimum=1, maximum=30, step=1, default=10, label="dilate_kernel_size")
                 
-                caption = gr.inputs.Textbox(lines=2, default="glass.lens.crystal.diamond.bubble.bulb.web.grid", label="foreground input text")
-                box_threshold = gr.inputs.Slider(minimum=0.01, maximum=0.99, step=0.01, default=0.5, label="box_threshold")
-                text_threshold = gr.inputs.Slider(minimum=0.01, maximum=0.99, step=0.01, default=0.25, label="text_threshold")
+                fg_caption = gr.inputs.Textbox(lines=1, default="", label="foreground input text")
+                fg_box_threshold = gr.inputs.Slider(minimum=0.01, maximum=0.99, step=0.01, default=0.5, label="foreground_box_threshold")
+                fg_text_threshold = gr.inputs.Slider(minimum=0.01, maximum=0.99, step=0.01, default=0.25, label="foreground_text_threshold")
+
+                tr_caption = gr.inputs.Textbox(lines=1, default="glass.lens.crystal.diamond.bubble.bulb.web.grid", label="transparency input text")
+                tr_box_threshold = gr.inputs.Slider(minimum=0.01, maximum=0.99, step=0.01, default=0.5, label="transparency_box_threshold")
+                tr_text_threshold = gr.inputs.Slider(minimum=0.01, maximum=0.99, step=0.01, default=0.25, label="transparency_text_threshold")
 
             # show the image with mask
             with gr.Tab(label='SAM Mask'):
