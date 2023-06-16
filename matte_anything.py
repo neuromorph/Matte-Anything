@@ -335,7 +335,7 @@ if __name__ == "__main__":
             [original_image, selected_points],
             [input_image]
         )
-        button.click(run_inference, inputs=[original_image, selected_points, erode_kernel_size, dilate_kernel_size, box_threshold, text_threshold, caption], outputs=[mask, alpha,  \
+        button.click(run_inference, inputs=[original_image, selected_points, erode_kernel_size, dilate_kernel_size, fg_box_threshold, fg_text_threshold, fg_caption, tr_box_threshold, tr_text_threshold, tr_caption], outputs=[mask, alpha,  \
                                             foreground_by_sam_mask, refined_by_vitmatte, new_bg_1, new_bg_2, new_bg_3])
 
         with gr.Row():
