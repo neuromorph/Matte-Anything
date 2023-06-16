@@ -266,8 +266,8 @@ if __name__ == "__main__":
                 button = gr.Button("Start!")
                 erode_kernel_size = gr.inputs.Slider(minimum=1, maximum=30, step=1, default=10, label="erode_kernel_size")
                 dilate_kernel_size = gr.inputs.Slider(minimum=1, maximum=30, step=1, default=10, label="dilate_kernel_size")
-                box_threshold = gr.inputs.Slider(minimum=0.05, maximum=0.95, step=0.05, default=0.5, label="transparency_box_threshold")
-                text_threshold = gr.inputs.Slider(minimum=0.05, maximum=0.95, step=0.05, default=0.25, label="transparency_text_threshold")
+                box_threshold = gr.inputs.Slider(minimum=0.05, maximum=0.95, step=0.01, default=0.5, label="transparency_box_threshold")
+                text_threshold = gr.inputs.Slider(minimum=0.05, maximum=0.95, step=0.01, default=0.25, label="transparency_text_threshold")
 
             # show the image with mask
             with gr.Tab(label='SAM Mask'):
