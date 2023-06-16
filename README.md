@@ -18,7 +18,20 @@ Institute: School of EIC, HUST
 ![demo](https://github.com/hustvl/Matte-Anything/assets/74295796/d947f59d-b0c1-4c22-9967-d8f2bf633879)
 
 #
-
+=========================================================================================
+<h3> New samples showing contrast between almost full and almost no transparency settings </h3>
+ 
+ Refer [Colab notebook](MatteAnything.ipynb) to try out the demo.
+ => Notice transparency values in the added sliders:
+ 
+ ![Bulb on table](figs/bulb-table-no.png)
+ ![Bulb on table](figs/bulb-table-ful.png)
+ ![Bulb on wire](figs/bulb-wire-no.png)
+ ![Bulb on wire](figs/bulb-wire-ful.png)
+ ![Ice cube](figs/ice-cube-no.png)
+ ![Ice cube](figs/ice-cube-ful.png)  
+ 
+ 
 ## 📢 News
 
 * **`2023/06/08`** We release arxiv tech report! 
