@@ -140,7 +140,7 @@ if __name__ == "__main__":
     vitmatte = init_vitmatte(vitmatte_model)
     grounding_dino = dino_load_model(grounding_dino['config'], grounding_dino['weight'])
 
-    def run_inference(input_x, selected_points, erode_kernel_size, dilate_kernel_size):
+    def run_inference(input_x, selected_points, erode_kernel_size, dilate_kernel_size, box_threshold, text_threshold):
         predictor.set_image(input_x)
         if len(selected_points) != 0:
             points = torch.Tensor([p for p, _ in selected_points]).to(device).unsqueeze(1)
@@ -183,8 +183,8 @@ if __name__ == "__main__":
             model=grounding_dino,
             image=image_transformed,
             caption="glass, lens, crystal, diamond, bubble, bulb, web, grid",
-            box_threshold=0.5,
-            text_threshold=0.25,
+            box_threshold,
+            text_threshold,
             )
         annotated_frame = dino_annotate(image_source=input_x, boxes=boxes, logits=logits, phrases=phrases)
         # 把annotated_frame的改成RGB
@@ -266,6 +266,8 @@ if __name__ == "__main__":
                 button = gr.Button("Start!")
                 erode_kernel_size = gr.inputs.Slider(minimum=1, maximum=30, step=1, default=10, label="erode_kernel_size")
                 dilate_kernel_size = gr.inputs.Slider(minimum=1, maximum=30, step=1, default=10, label="dilate_kernel_size")
+		box_threshold = gr.inputs.Slider(minimum=0.05, maximum=0.95, step=0.05, default=0.5, label="transparency_box_threshold")
+		text_threshold = gr.inputs.Slider(minimum=0.05, maximum=0.95, step=0.05, default=0.25, label="transparency_text_threshold")
 
             # show the image with mask
             with gr.Tab(label='SAM Mask'):
@@ -303,7 +305,7 @@ if __name__ == "__main__":
             [original_image, selected_points],
             [input_image]
         )
-        button.click(run_inference, inputs=[original_image, selected_points, erode_kernel_size, dilate_kernel_size], outputs=[mask, alpha,  \
+        button.click(run_inference, inputs=[original_image, selected_points, erode_kernel_size, dilate_kernel_size, box_threshold, text_threshold], outputs=[mask, alpha,  \
                                             foreground_by_sam_mask, refined_by_vitmatte, new_bg_1, new_bg_2, new_bg_3])
 
         with gr.Row():
