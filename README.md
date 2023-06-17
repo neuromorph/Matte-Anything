@@ -15,23 +15,39 @@ Institute: School of EIC, HUST
 
 </div>
 
+#
+================================================================================
+# Updates in this fork: 
+ 
+ *   Use text input for foreground objects (along with text settings), instead of selecting points in image
+ *   Change transparency settings to better tune for images with transparent objects
+
+
+ Refer [Colab notebook](MatteAnything.ipynb) to try out the demo in Google colab.
+
+<h2> Samples using text input: </h2>
+
+![cat dog sofa](figs/cat-dog-sofa-text.png)
+![boy dog](figs/boy-dog-text.png)
+![man dog chair](figs/man-chair-text.png)
+
+  
+  
+<h2> Samples for transparency:</h2>
+
+![bulb alpha](figs/bulb-alpha.png) 
+![crystal alpha](figs/crystal-alpha.png)
+
+Sample with full or no transparency values in setting:
+![Bulb on wire](figs/bulb-wire-ful.png)
+![Bulb on wire](figs/bulb-wire-no.png)
+
+
+==============================================================================
+
 ![demo](https://github.com/hustvl/Matte-Anything/assets/74295796/d947f59d-b0c1-4c22-9967-d8f2bf633879)
 
-#
-=========================================================================================
-<h3> New samples showing contrast between almost full and almost no transparency settings </h3>
- 
- Refer [Colab notebook](MatteAnything.ipynb) to try out the demo.
- => Notice transparency values in the added sliders:
- 
- ![Bulb on table](figs/bulb-table-no.png)
- ![Bulb on table](figs/bulb-table-ful.png)
- ![Bulb on wire](figs/bulb-wire-no.png)
- ![Bulb on wire](figs/bulb-wire-ful.png)
- ![Ice cube](figs/ice-cube-no.png)
- ![Ice cube](figs/ice-cube-ful.png)  
- 
- 
+
 ## 📢 News
 
 * **`2023/06/08`** We release arxiv tech report! 

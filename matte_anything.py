@@ -34,7 +34,7 @@ def generate_checkerboard_image(height, width, num_squares):
     square_size_h = height // num_squares_h
     square_size_w = square_size_h
     num_squares_w = width // square_size_w
-    
+
 
     new_height = num_squares_h * square_size_h
     new_width = num_squares_w * square_size_w
@@ -54,19 +54,19 @@ def generate_checkerboard_image(height, width, num_squares):
 
 
 def init_segment_anything(model_type):
-    """
-    Initialize the segmenting anything with model_type in ['vit_b', 'vit_l', 'vit_h']
-    """
-    
+
+    #Initialize the segmenting anything with model_type in ['vit_b', 'vit_l', 'vit_h']
+
+
     sam = sam_model_registry[model_type](checkpoint=models[model_type]).to(device)
     predictor = SamPredictor(sam)
 
     return predictor
 
 def init_vitmatte(model_type):
-    """
-    Initialize the vitmatte with model_type in ['vit_s', 'vit_b']
-    """
+
+    #Initialize the vitmatte with model_type in ['vit_s', 'vit_b']
+
     cfg = LazyConfig.load(vitmatte_config[model_type])
     vitmatte = instantiate(cfg.model)
     vitmatte.to(device)
@@ -106,8 +106,8 @@ def undo_points(orig_img, sel_pix):
     # draw points
     if len(sel_pix) != 0:
         sel_pix.pop()
-        for point, label in sel_pix:
-            cv2.drawMarker(temp, point, colors[label], markerType=markers[label], markerSize=20, thickness=5)
+        # for point, label in sel_pix:
+        cv2.drawMarker(temp, point, colors[label], markerType=markers[label], markerSize=20, thickness=5)
     if temp[..., 0][0, 0] == temp[..., 2][0, 0]:  # BGR to RGB
         temp = cv2.cvtColor(temp, cv2.COLOR_BGR2RGB)
     return temp if isinstance(temp, np.ndarray) else np.array(temp)
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     device = 'cuda'
     sam_model = 'vit_h'
     vitmatte_model = 'vit_b'
-    
+
     colors = [(255, 0, 0), (0, 255, 0)]
     markers = [1, 5]
 
@@ -161,36 +161,38 @@ if __name__ == "__main__":
         else:
             transformed_points, labels = None, None
             point_coords, point_labels = None, None
-            
+
         if fg_caption is not None and fg_caption != "":
-            fg_boxes, _, _ = dino_predict(
+            fg_boxes, logits, phrases = dino_predict(
                 model=grounding_dino,
                 image=image_transformed,
                 caption=fg_caption,
                 box_threshold=fg_box_threshold,
                 text_threshold=fg_text_threshold
                 )
-            
+            print(logits, phrases)
             if fg_boxes.shape[0] == 0:
                 # no fg object detected
-                fg_boxes = None
+                transformed_boxes = None
             else:
                 h, w, _ = input_x.shape
                 fg_boxes = torch.Tensor(fg_boxes).to(device)
                 fg_boxes = fg_boxes * torch.Tensor([w, h, w, h]).to(device)
                 fg_boxes = box_convert(boxes=fg_boxes, in_fmt="cxcywh", out_fmt="xyxy")
+                transformed_boxes = predictor.transform.apply_boxes_torch(fg_boxes, input_x.shape[:2])
 
         else:
-            fg_boxes = None
+            transformed_boxes = None
 
-
+        print(transformed_boxes)
         # predict segmentation according to the boxes or points
         masks, scores, logits = predictor.predict_torch(
             point_coords=point_coords,
             point_labels=point_labels,
-            boxes=fg_boxes,
+            boxes=transformed_boxes,
             multimask_output=False,
         )
+        print(masks.shape, logits.shape)
         masks = masks.cpu().detach().numpy()
         mask_all = np.ones((input_x.shape[0], input_x.shape[1], 3))
         for ann in masks:
@@ -198,21 +200,20 @@ if __name__ == "__main__":
             for i in range(3):
                 mask_all[ann[0] == True, i] = color_mask[i]
         img = input_x / 255 * 0.3 + mask_all * 0.7
-        
+
         # generate alpha matte
         torch.cuda.empty_cache()
-        mask = masks[0][0].astype(np.uint8)*255
+        mask = np.zeros(masks[0][0].shape)
+        print("Mask shape ", mask.shape, masks.shape[0])
+        for i in range(masks.shape[0]):
+            mask[masks[i][0] == True] = 255
+        mask = mask.astype(np.uint8)
+        print("Trimap in values: ", np.unique(mask))
         trimap = generate_trimap(mask, erode_kernel_size, dilate_kernel_size).astype(np.float32)
+        print("Trimap out values: ", np.unique(trimap))
         trimap[trimap==128] = 0.5
         trimap[trimap==255] = 1
 
-        # dino_transform = T.Compose(
-        # [
-        #     T.RandomResize([800], max_size=1333),
-        #     T.ToTensor(),
-        #     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        # ])
-        # image_transformed, _ = dino_transform(Image.fromarray(input_x), None)
         boxes, logits, phrases = dino_predict(
             model=grounding_dino,
             image=image_transformed,
@@ -241,7 +242,7 @@ if __name__ == "__main__":
         torch.cuda.empty_cache()
         alpha = vitmatte(input)['phas'].flatten(0,2)
         alpha = alpha.detach().cpu().numpy()
-        
+
         # get a green background
         background = generate_checkerboard_image(input_x.shape[0], input_x.shape[1], 8)
 
@@ -279,56 +280,72 @@ if __name__ == "__main__":
 
         return  mask, alpha,  foreground_mask, foreground_alpha, new_bg_1, new_bg_2, new_bg_3
 
+    
     with gr.Blocks() as demo:
         gr.Markdown(
-            """
-            # <center>Matte Anything🐒 !
-            """
+
+            "# <center>Matte Anything🐒 !"
+
         )
         with gr.Row().style(equal_height=True):
             with gr.Column():
                 # input image
                 original_image = gr.State(value=None)   # store original image without points, default None
                 input_image = gr.Image(type="numpy")
+
+
+                # show the image with mask
+                with gr.Tab(label='SAM Mask'):
+                    mask = gr.Image(type='numpy')
+                # with gr.Tab(label='Trimap'):
+                #     trimap = gr.Image(type='numpy')
+                with gr.Tab(label='Alpha Matte'):
+                    alpha = gr.Image(type='numpy')
+                # show only mask
+                with gr.Tab(label='Foreground by SAM Mask'):
+                    foreground_by_sam_mask = gr.Image(type='numpy')
+                with gr.Tab(label='Refined by ViTMatte'):
+                    refined_by_vitmatte = gr.Image(type='numpy')
+                # with gr.Tab(label='Transparency Detection'):
+                #     transparency = gr.Image(type='numpy')
+                with gr.Tab(label='New Background 1'):
+                    new_bg_1 = gr.Image(type='numpy')
+                with gr.Tab(label='New Background 2'):
+                    new_bg_2 = gr.Image(type='numpy')
+                with gr.Tab(label='New Background 3'):
+                    new_bg_3 = gr.Image(type='numpy')
+
+
+            with gr.Column():
                 # point prompt
                 with gr.Column():
                     selected_points = gr.State([])      # store points
                     with gr.Row():
                         radio = gr.Radio(['foreground_point', 'background_point'], label='point labels')
-                        undo_button = gr.Button('Remove Points')
+                        undo_button = gr.Button('Remove Point')
+                gr.Markdown("Please select points OR provide text input. Both together can result in error due to any mismatch.")
+                fg_caption = gr.inputs.Textbox(lines=1, default="", label="foreground input text")
+
                 # run button
                 button = gr.Button("Start!")
-                erode_kernel_size = gr.inputs.Slider(minimum=1, maximum=30, step=1, default=10, label="erode_kernel_size")
-                dilate_kernel_size = gr.inputs.Slider(minimum=1, maximum=30, step=1, default=10, label="dilate_kernel_size")
+
+                with gr.Box():
+                    gr.Markdown("Trimap Settings")
+                    erode_kernel_size = gr.inputs.Slider(minimum=1, maximum=30, step=1, default=10, label="erode_kernel_size")
+                    dilate_kernel_size = gr.inputs.Slider(minimum=1, maximum=30, step=1, default=10, label="dilate_kernel_size")
                 
-                fg_caption = gr.inputs.Textbox(lines=1, default="", label="foreground input text")
-                fg_box_threshold = gr.inputs.Slider(minimum=0.01, maximum=0.99, step=0.01, default=0.5, label="foreground_box_threshold")
-                fg_text_threshold = gr.inputs.Slider(minimum=0.01, maximum=0.99, step=0.01, default=0.25, label="foreground_text_threshold")
+                with gr.Box():
+                    gr.Markdown("Input Text Settings")
+                    fg_box_threshold = gr.inputs.Slider(minimum=0.0, maximum=1.0, step=0.001, default=0.25, label="foreground_box_threshold")
+                    fg_text_threshold = gr.inputs.Slider(minimum=0.0, maximum=1.0, step=0.001, default=0.25, label="foreground_text_threshold")
 
-                tr_caption = gr.inputs.Textbox(lines=1, default="glass.lens.crystal.diamond.bubble.bulb.web.grid", label="transparency input text")
-                tr_box_threshold = gr.inputs.Slider(minimum=0.01, maximum=0.99, step=0.01, default=0.5, label="transparency_box_threshold")
-                tr_text_threshold = gr.inputs.Slider(minimum=0.01, maximum=0.99, step=0.01, default=0.25, label="transparency_text_threshold")
+                with gr.Box():
+                    gr.Markdown("Transparency Settings")
+                    tr_caption = gr.inputs.Textbox(lines=1, default="glass.lens.crystal.diamond.bubble.bulb.web.grid", label="transparency input text")
+                    tr_box_threshold = gr.inputs.Slider(minimum=0.0, maximum=1.0, step=0.005, default=0.5, label="transparency_box_threshold")
+                    tr_text_threshold = gr.inputs.Slider(minimum=0.0, maximum=1.0, step=0.005, default=0.25, label="transparency_text_threshold")
 
-            # show the image with mask
-            with gr.Tab(label='SAM Mask'):
-                mask = gr.Image(type='numpy')
-            # with gr.Tab(label='Trimap'):
-            #     trimap = gr.Image(type='numpy')
-            with gr.Tab(label='Alpha Matte'):
-                alpha = gr.Image(type='numpy')
-            # show only mask
-            with gr.Tab(label='Foreground by SAM Mask'):
-                foreground_by_sam_mask = gr.Image(type='numpy')
-            with gr.Tab(label='Refined by ViTMatte'):
-                refined_by_vitmatte = gr.Image(type='numpy')
-            # with gr.Tab(label='Transparency Detection'):
-            #     transparency = gr.Image(type='numpy')
-            with gr.Tab(label='New Background 1'):
-                new_bg_1 = gr.Image(type='numpy')
-            with gr.Tab(label='New Background 2'):
-                new_bg_2 = gr.Image(type='numpy')
-            with gr.Tab(label='New Background 3'):
-                new_bg_3 = gr.Image(type='numpy')
+
 
         input_image.upload(
             store_img,
