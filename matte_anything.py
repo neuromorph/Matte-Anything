@@ -106,8 +106,8 @@ def undo_points(orig_img, sel_pix):
     # draw points
     if len(sel_pix) != 0:
         sel_pix.pop()
-        # for point, label in sel_pix:
-        cv2.drawMarker(temp, point, colors[label], markerType=markers[label], markerSize=20, thickness=5)
+        for point, label in sel_pix:
+            cv2.drawMarker(temp, point, colors[label], markerType=markers[label], markerSize=20, thickness=5)
     if temp[..., 0][0, 0] == temp[..., 2][0, 0]:  # BGR to RGB
         temp = cv2.cvtColor(temp, cv2.COLOR_BGR2RGB)
     return temp if isinstance(temp, np.ndarray) else np.array(temp)
